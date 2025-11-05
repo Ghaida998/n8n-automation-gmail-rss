@@ -1,0 +1,262 @@
+{
+  "name": "My workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -640,
+        -192
+      ],
+      "id": "88bd483c-ab14-4349-a971-08d8103501a5",
+      "name": "When clicking ‘Execute workflow’"
+    },
+    {
+      "parameters": {
+        "url": "https://saudigazette.com.sa/rssFeed/74",
+        "options": {
+          "ignoreSSL": false
+        }
+      },
+      "type": "n8n-nodes-base.rssFeedRead",
+      "typeVersion": 1.2,
+      "position": [
+        -480,
+        -144
+      ],
+      "id": "644ef156-4967-40d7-a276-bd8298f23fee",
+      "name": "RSS Read"
+    },
+    {
+      "parameters": {
+        "maxItems": 10
+      },
+      "type": "n8n-nodes-base.limit",
+      "typeVersion": 1,
+      "position": [
+        -288,
+        -144
+      ],
+      "id": "86dd42de-05a8-4cfa-a103-f9d7f7328f6a",
+      "name": "Limit"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=Your job is to read through the content and only focus on news that related to AI, HR, or compliance. \n\nIf the Article is not related to AI, HR, or compliance, then only reply with one word \"Irrelevant\". \n\nIf the article is related to AI, HR, or compliance, then summarize the news in 2-3 sentences. Only include facts and don't mention that the article is of interest to us. \n\nGo!\n\n{{ $json.title }}\n{{ $json.content }}\n{{ $json.link }}\n{{ $json.contentSnippet }}",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        -208,
+        -16
+      ],
+      "id": "34b53a52-07cb-4d24-904e-804bb1bfab97",
+      "name": "Basic LLM Chain"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatGoogleGemini",
+      "typeVersion": 1,
+      "position": [
+        -208,
+        176
+      ],
+      "id": "b4aac3f1-538f-41ec-abf1-2ebdb481aeed",
+      "name": "Google Gemini Chat Model",
+      "credentials": {
+        "googlePalmApi": {
+          "id": "3kwMqPD8sFW7lIez",
+          "name": "Google Gemini(PaLM) Api account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "7e051b94-77b9-451b-9072-64cad598c918",
+              "name": "LLM Summary",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            },
+            {
+              "id": "6fe5920e-7d38-4d48-8645-e2acc2616e56",
+              "name": "link",
+              "value": "={{ $('Limit').item.json.link }}",
+              "type": "string"
+            },
+            {
+              "id": "205bad30-b153-4580-ba93-62613506c559",
+              "name": "Date",
+              "value": "={{ $('Limit').item.json.pubDate }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        32,
+        -128
+      ],
+      "id": "af37bc01-3d5a-4da9-ae7d-03ab93ec892f",
+      "name": "Edit Fields"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "3f9ed235-18a0-4ce4-ab5d-f82df0ff9a4f",
+              "leftValue": "={{ $json['LLM Summary'] }}",
+              "rightValue": "Irrelevant",
+              "operator": {
+                "type": "string",
+                "operation": "notEquals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        176,
+        -16
+      ],
+      "id": "556f2b03-d5ee-4613-9059-48244129cc92",
+      "name": "If"
+    },
+    {
+      "parameters": {
+        "sendTo": "ghalmohsen@gmail.com",
+        "subject": "News n8n",
+        "emailType": "text",
+        "message": "=I have news{{ $json['LLM Summary'] }}\nthis is the link {{ $json.link }}\n{{ $json.Date }}\nHave a good day Ghaida",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        400,
+        -176
+      ],
+      "id": "aee3ab4e-f440-4ef0-9c2f-89fd6976fd7e",
+      "name": "Send a message",
+      "webhookId": "86be7410-5d99-4004-9c37-0ade943ce7c1",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "N4hPqDPVWFZLVFTs",
+          "name": "Gmail account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "When clicking ‘Execute workflow’": {
+      "main": [
+        [
+          {
+            "node": "RSS Read",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "RSS Read": {
+      "main": [
+        [
+          {
+            "node": "Limit",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Limit": {
+      "main": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Gemini Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Basic LLM Chain",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Basic LLM Chain": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields": {
+      "main": [
+        [
+          {
+            "node": "If",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "If": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "a94881f8-ef6c-4ef3-8262-f319b38b2759",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "805776b295fa2a2472b616f8d226e042b8d50f067140a76b5f3b15fe9c90c3cd"
+  },
+  "id": "FeDbPk3M131YubGy",
+  "tags": []
+}
